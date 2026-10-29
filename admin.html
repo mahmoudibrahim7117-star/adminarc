@@ -117,10 +117,57 @@ footer a{color:var(--rd2);cursor:pointer}
 <script>
 var CS={AED:'د.إ',SAR:'ر.س',USD:'$'},ST={ordered:'تم الطلب',delivered:'تم التسليم',notdel:'لم يُسلَّم',canceled:'ملغي'};
 var DEF={"wa":"966500000000","pass":"1234","rates":{"AED":1,"SAR":1.02,"USD":0.2723},"cats":[{"id":"c1","name":"المتابعين"},{"id":"c2","name":"المشاهدات"},{"id":"c3","name":"الاشتراكات"}],"prods":[{"id":"p1","cat":"c1","name":"متابعين انستغرام","price":15,"per":1000,"min":250,"max":100000,"unit":"متابع","img":"","desc":"متابعين لحساب انستغرام. يبدأ التنفيذ بعد تأكيد الطلب.","eta":"من 1 إلى 24 ساعة"},{"id":"p2","cat":"c1","name":"متابعين تيك توك","price":18,"per":1000,"min":250,"max":100000,"unit":"متابع","img":"","desc":"متابعين لحساب تيك توك. يبدأ التنفيذ بعد تأكيد الطلب.","eta":"من 1 إلى 24 ساعة"},{"id":"p3","cat":"c2","name":"مشاهدات تيك توك","price":2.2,"per":1000,"min":250,"max":1000000,"unit":"مشاهدة","img":"","desc":"مشاهدات لفيديوهات تيك توك. أرسل رابط الفيديو عند الطلب.","eta":"خلال 6 ساعات"},{"id":"p4","cat":"c2","name":"مشاهدات انستغرام ريلز","price":2,"per":1000,"min":250,"max":1000000,"unit":"مشاهدة","img":"","desc":"مشاهدات لريلز انستغرام. أرسل رابط الريلز عند الطلب.","eta":"خلال 6 ساعات"},{"id":"p5","cat":"c3","name":"اشتراك نتفليكس شهر","price":15,"per":1,"min":1,"max":12,"unit":"اشتراك","img":"","desc":"اشتراك نتفليكس لمدة شهر. أرسل بريدك عند الطلب.","eta":"خلال ساعة"},{"id":"p6","cat":"c3","name":"اشتراك سبوتيفاي شهر","price":11,"per":1,"min":1,"max":12,"unit":"اشتراك","img":"","desc":"اشتراك سبوتيفاي لمدة شهر. أرسل بريدك عند الطلب.","eta":"خلال ساعة"}],"codes":[]};
+var GAS=`// ARC STORE - استقبال وإدارة الطلبات
+// غيّر المفتاح التالي إلى كلمة سرية من اختيارك (وضعها نفسها في لوحة الإدارة)
+var ADMIN_KEY = 'CHANGE_ME';
+
+function auth_(k) { return ADMIN_KEY !== 'CHANGE_ME' && k === ADMIN_KEY; }
+function sheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var s = ss.getSheetByName('Orders') || ss.insertSheet('Orders');
+  if (s.getLastRow() === 0) s.appendRow(['رقم الطلب','الوقت','الحالة','الاسم','البريد','الهاتف','الإجمالي','العملة','json']);
+  return s;
+}
+function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function find_(s, no) { return s.createTextFinder(String(no)).matchEntireCell(true).findNext(); }
+
+function doPost(e) {
+  var d; try { d = JSON.parse(e.postData.contents); } catch (x) { return out_({ok:false}); }
+  var s = sheet_();
+  if (d.action === 'add') {
+    var o = d.order;
+    if (!o || !o.no || !o.it || JSON.stringify(o).length > 20000) return out_({ok:false});
+    if (find_(s, o.no)) return out_({ok:true});
+    o.st = 'ordered'; o.eta = (o.it[0] && o.it[0].e) || ''; o.note = '';
+    s.appendRow([o.no, new Date(o.t), o.st, o.nm, o.em, "'" + o.ph, o.tt, o.cur, JSON.stringify(o)]);
+    return out_({ok:true});
+  }
+  if (!auth_(d.key)) return out_({ok:false, error:'auth'});
+  var f = find_(s, d.no); if (!f) return out_({ok:false});
+  var r = f.getRow();
+  if (d.action === 'delete') { s.deleteRow(r); return out_({ok:true}); }
+  if (d.action === 'update') {
+    var o2 = JSON.parse(s.getRange(r, 9).getValue());
+    ['st','eta','note'].forEach(function(k){ if (d[k] !== undefined) o2[k] = d[k]; });
+    s.getRange(r, 3).setValue(o2.st);
+    s.getRange(r, 9).setValue(JSON.stringify(o2));
+    return out_({ok:true});
+  }
+  return out_({ok:false});
+}
+
+function doGet(e) {
+  if (!e.parameter || !auth_(e.parameter.key)) return out_({ok:false, error:'auth'});
+  var s = sheet_(), n = s.getLastRow(), list = [];
+  if (n > 1) s.getRange(2, 9, n - 1, 1).getValues().forEach(function(r){ try { list.push(JSON.parse(r[0])); } catch (x) {} });
+  return out_({ok:true, orders:list});
+}
+`;
+var OK2='arcstore_okey',lastSync=null,syncErr='',known=null,lastPush=0;
 var KEY='arcstore_admin_draft',OKEY='arcstore_orders',B=JSON.stringify(window.ARC_DATA||DEF),S,O=[],tab='orders',ofl='all';
 try{var d0=JSON.parse(localStorage.getItem(KEY));if(d0&&d0.base===B)S=d0.s}catch(e){}
 if(!S)S=JSON.parse(B);
-S.codes=S.codes||[];S.prods.forEach(function(p){p.desc=p.desc||'';p.eta=p.eta||''});
+S.codes=S.codes||[];S.ordersUrl=S.ordersUrl||'';S.prods.forEach(function(p){p.desc=p.desc||'';p.eta=p.eta||''});
 try{O=JSON.parse(localStorage.getItem(OKEY))||[]}catch(e){}
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
@@ -136,14 +183,14 @@ function closeAdm(){location.href='index.html'}
 function openAdm(){
  A().innerHTML='<div class="lg"><div class="logo" style="justify-content:center;margin-bottom:14px"><b>ARC</b><i>STORE</i></div><h3>دخول الإدارة</h3><input class="fld" id="pw" type="password" placeholder="كلمة المرور" style="text-align:center"><div class="err" id="pe"></div><button class="btn" id="lg" style="width:100%">دخول</button><br><br><a class="x" id="cl">رجوع للمتجر</a></div>';
  $('cl').onclick=closeAdm;$('pw').onkeydown=function(e){if(e.key==='Enter')$('lg').click()};
- $('lg').onclick=function(){if($('pw').value===S.pass)panel();else $('pe').textContent='كلمة المرور غير صحيحة'}}
+ $('lg').onclick=function(){if($('pw').value===S.pass){panel();sync();if(!window._iv)window._iv=setInterval(sync,20000)}else $('pe').textContent='كلمة المرور غير صحيحة'}}
 function panel(){var st=$('adm').scrollTop;
  var h='<div class="top"><h2>لوحة التحكم</h2><div><button class="btn" id="dl">تحميل data.js</button> <button class="btn ghost" id="ex">خروج</button></div></div><p class="hint">المنتجات والأكواد والإعدادات: بعد التعديل حمّل data.js واستبدل به الملف القديم. الطلبات تُحفظ في هذا المتصفح فقط، فصدّر نسخة احتياطية منها بين وقت وآخر.</p>';
  h+='<div class="tabs">'+[['orders','الطلبات ('+O.length+')'],['prods','المنتجات والأقسام'],['codes','أكواد الخصم'],['set','الإعدادات']].map(function(t){return '<button class="tab'+(tab===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
  h+=({orders:vOrders,prods:vProds,codes:vCodes,set:vSet})[tab]();
- A().innerHTML=h;$('adm').scrollTop=st}
+ A().innerHTML=h;if($('gas'))$('gas').value=GAS;$('adm').scrollTop=st}
 function vOrders(){var cnt={all:O.length};Object.keys(ST).forEach(function(k){cnt[k]=O.filter(function(o){return o.st===k}).length});
- var h='<div class="ap"><h3>استيراد طلب جديد</h3><p class="hint">عندما يصلك طلب على واتساب، انسخ الرسالة كاملة والصقها هنا، وسيُضاف الطلب بكل بياناته.</p><textarea class="fld" id="impt" rows="3" placeholder="الصق رسالة الواتساب هنا"></textarea><div style="margin-top:8px"><button class="btn" id="imp">إضافة الطلب</button> <button class="btn ghost" id="bk">تصدير نسخة احتياطية</button> <label class="x" style="display:inline-block;cursor:pointer">استيراد نسخة<input type="file" accept=".json" data-bk hidden></label></div></div>';
+ var h='<div class="ap"><div class="top"><div class="hint" id="syncs">'+syncText()+'</div><button class="btn ghost" id="rf">تحديث الآن</button></div></div><div class="ap"><h3>استيراد يدوي (احتياطي)</h3><p class="hint">للطلبات التي لم تصل تلقائياً: انسخ رسالة الواتساب والصقها هنا.</p><textarea class="fld" id="impt" rows="3" placeholder="الصق رسالة الواتساب هنا"></textarea><div style="margin-top:8px"><button class="btn" id="imp">إضافة الطلب</button> <button class="btn ghost" id="bk">تصدير نسخة احتياطية</button> <label class="x" style="display:inline-block;cursor:pointer">استيراد نسخة<input type="file" accept=".json" data-bk hidden></label></div></div>';
  h+='<div class="tabs">'+[['all','الكل']].concat(Object.keys(ST).map(function(k){return [k,ST[k]]})).map(function(f){return '<button class="tab'+(ofl===f[0]?' on':'')+'" data-fl="'+f[0]+'">'+f[1]+' ('+cnt[f[0]]+')</button>'}).join('')+'</div>';
  var l=O.filter(function(o){return ofl==='all'||o.st===ofl});
  return h+(l.length?l.map(oCard).join(''):'<p class="sub">لا توجد طلبات هنا.</p>')}
@@ -169,7 +216,23 @@ function vProds(){
   '</div><div style="margin-top:10px"><button class="x" data-dp="'+i+'">حذف المنتج</button></div></div></div>'}).join('')+'<button class="btn ghost" id="ap">+ إضافة منتج</button></div>'}
 function vCodes(){return '<div class="ap"><h3>أكواد الخصم</h3>'+(S.codes.length?'':'<p class="sub">لا توجد أكواد بعد.</p>')+S.codes.map(function(c,i){var d='data-i="'+i+'" ';
  return '<div class="ff cr">'+fl('الكود','<input class="fld" dir="ltr" '+d+'data-cd="code" value="'+esc(c.code)+'">')+fl('النوع','<select class="fld" '+d+'data-cd="type"><option value="p"'+(c.type==='p'?' selected':'')+'>نسبة %</option><option value="f"'+(c.type==='f'?' selected':'')+'>مبلغ ثابت (درهم)</option></select>')+fl('القيمة','<input class="fld" type="number" step="any" min="0" '+d+'data-cd="v" value="'+c.v+'">')+'<div><label>مفعّل</label><input type="checkbox" '+d+'data-cd="on"'+(c.on!==false?' checked':'')+' style="width:22px;height:22px"></div><div style="align-self:end"><button class="x" data-dcd="'+i+'">حذف</button></div></div>'}).join('')+'<button class="btn ghost" id="acd">+ إضافة كود</button><p class="hint">بعد التعديل حمّل data.js وارفعه ليعمل الكود للعملاء. تنبيه: الأكواد مخزّنة داخل data.js، فمن يفتح الملف يستطيع قراءتها.</p></div>'}
-function vSet(){return '<div class="ap"><h3>الإعدادات</h3><div class="ff">'+fl('رقم واتساب (مع رمز الدولة)','<input class="fld" data-s="wa" value="'+esc(S.wa)+'">')+fl('1 درهم = كم ريال','<input class="fld" type="number" step="any" data-r="SAR" value="'+S.rates.SAR+'">')+fl('1 درهم = كم دولار','<input class="fld" type="number" step="any" data-r="USD" value="'+S.rates.USD+'">')+fl('كلمة مرور الإدارة','<input class="fld" data-s="pass" value="'+esc(S.pass)+'">')+'</div></div>'}
+function vSet(){return '<div class="ap"><h3>الإعدادات</h3><div class="ff">'+fl('رقم واتساب (مع رمز الدولة)','<input class="fld" data-s="wa" value="'+esc(S.wa)+'">')+fl('1 درهم = كم ريال','<input class="fld" type="number" step="any" data-r="SAR" value="'+S.rates.SAR+'">')+fl('1 درهم = كم دولار','<input class="fld" type="number" step="any" data-r="USD" value="'+S.rates.USD+'">')+fl('كلمة مرور الإدارة','<input class="fld" data-s="pass" value="'+esc(S.pass)+'">')+'</div></div>'+vLink()}
+function syncText(){if(!S.ordersUrl||!localStorage.getItem(OK2))return '⚪ غير مربوط بالجدول. أدخل رابط الربط والمفتاح من تبويب الإعدادات.';if(syncErr)return '🔴 '+syncErr;return lastSync?'🟢 متصل — آخر تحديث '+lastSync.toLocaleTimeString('en-GB'):'⏳ جارٍ التحديث...'}
+function sync(manual){var u=S.ordersUrl,k=localStorage.getItem(OK2);
+ if(!u||!k){if(manual===true)toast('أدخل رابط الربط والمفتاح من الإعدادات');return}
+ if(manual!==true&&Date.now()-lastPush<4000)return;
+ fetch(u+(u.indexOf('?')<0?'?':'&')+'action=list&key='+encodeURIComponent(k)).then(function(r){return r.json()}).then(function(j){
+  if(!j||!j.ok){syncErr=j&&j.error==='auth'?'مفتاح الربط غير صحيح':'تعذر قراءة الطلبات'}
+  else{syncErr='';lastSync=new Date();var rem=j.orders||[],ids={};rem.forEach(function(o){ids[o.no]=1});
+   var fresh=rem.filter(function(o){return known&&!known[o.no]}).length;
+   O=rem.concat(O.filter(function(o){return !ids[o.no]})).sort(function(a,b){return b.t-a.t});saveO();
+   known={};O.forEach(function(o){known[o.no]=1});
+   if(fresh)toast('وصل '+fresh+' طلب جديد 🔔');
+   if(tab==='orders'&&!/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||''))panel()}
+  var s=$('syncs');if(s)s.textContent=syncText();if(manual===true&&!syncErr)toast('تم التحديث ✓')
+ }).catch(function(){syncErr='تعذر الاتصال بالرابط';var s=$('syncs');if(s)s.textContent=syncText()})}
+function push(act,o){var u=S.ordersUrl,k=localStorage.getItem(OK2);if(!u||!k)return;lastPush=Date.now();try{fetch(u,{method:'POST',mode:'no-cors',body:JSON.stringify({action:act,key:k,no:o.no,st:o.st,eta:o.eta,note:o.note})})}catch(e){}}
+function vLink(){return '<div class="ap"><h3>ربط الطلبات تلقائياً (Google Sheets)</h3><ol class="hint" style="line-height:2;padding-inline-start:20px"><li>أنشئ جدول Google Sheets جديداً، ثم من القائمة: الإضافات ← Apps Script.</li><li>احذف كل ما فيه والصق الكود بالأسفل، وغيّر <b>ADMIN_KEY</b> من CHANGE_ME إلى مفتاح سري من اختيارك.</li><li>اضغط نشر ← نشر جديد ← تطبيق ويب: التنفيذ «أنا»، ومن لديه حق الوصول «أي شخص». ثم انسخ رابط تطبيق الويب.</li><li>الصق الرابط والمفتاح في الخانتين بالأسفل، ثم حمّل data.js واستبدله (الرابط فقط ينتقل للموقع، أما المفتاح فيبقى في هذا المتصفح).</li></ol><div class="ff">'+fl('رابط تطبيق الويب','<input class="fld" dir="ltr" data-s="ordersUrl" value="'+esc(S.ordersUrl||'')+'">')+fl('مفتاح الربط (ADMIN_KEY)','<input class="fld" dir="ltr" data-ok value="'+esc(localStorage.getItem(OK2)||'')+'">')+'</div><label style="margin-top:10px">كود Apps Script</label><textarea class="fld" id="gas" rows="8" dir="ltr" readonly></textarea><button class="btn ghost" id="cpg" style="margin-top:8px">نسخ الكود</button></div>'}
 function impOrder(){var m=/ARCX:([A-Za-z0-9+\/=]+)/.exec($('impt').value),o;
  if(!m){toast('لم أجد كود الطلب في الرسالة');return}
  try{o=JSON.parse(decodeURIComponent(escape(atob(m[1]))))}catch(e){toast('كود الطلب غير صالح');return}
@@ -184,6 +247,8 @@ A().onclick=function(e){var t=e.target,d=t.dataset;
  if(t.id==='dl'){dlf('data.js','// بيانات المتجر\nwindow.ARC_DATA = '+JSON.stringify(S,null,1)+';\n','text/javascript');toast('تم تحميل data.js ✓ استبدل به الملف القديم');return}
  if(t.id==='ex'){closeAdm();return}
  if(t.id==='imp'){impOrder();return}
+ if(t.id==='rf'){sync(true);return}
+ if(t.id==='cpg'){var ta=$('gas');ta.select();document.execCommand('copy');toast('تم نسخ الكود');return}
  if(t.id==='bk'){dlf('orders-backup.json',JSON.stringify(O),'application/json');return}
  if(t.id==='ac'){S.cats.push({id:'c'+Date.now(),name:'قسم جديد'});save();panel();return}
  if(t.id==='ap'){if(!S.cats.length){toast('أضف قسماً أولاً');return}S.prods.push({id:'p'+Date.now(),cat:S.cats[0].id,name:'منتج جديد',desc:'',eta:'',price:10,per:1000,min:250,max:100000,unit:'وحدة',img:''});save();panel();return}
@@ -192,16 +257,17 @@ A().onclick=function(e){var t=e.target,d=t.dataset;
  if(d.dp!==undefined){if(confirm('حذف هذا المنتج؟')){S.prods.splice(d.dp,1);save();panel()}return}
  if(d.ri!==undefined){S.prods[d.ri].img='';save();panel();return}
  if(d.dcd!==undefined){if(confirm('حذف الكود؟')){S.codes.splice(d.dcd,1);save();panel()}return}
- if(d.delo!==undefined){if(confirm('حذف الطلب؟')){O=O.filter(function(x){return x.no!==d.delo});saveO();panel()}}};
+ if(d.delo!==undefined){if(confirm('حذف الطلب؟')){push('delete',{no:d.delo});O=O.filter(function(x){return x.no!==d.delo});saveO();panel()}}};
 function onEdit(e){var t=e.target,d=t.dataset,i=d.i,v=t.value;
+ if(d.ok!==undefined){localStorage.setItem(OK2,v.trim());return}
  if(d.up!==undefined){if(e.type==='change')upImg(d.up,t.files[0]);return}
  if(d.bk!==undefined){if(e.type==='change')impBackup(t.files[0]);return}
- if(d.o){var o=O.filter(function(x){return x.no===d.no})[0];if(!o)return;o[d.o]=v;saveO();if(d.o==='st'&&e.type==='change')panel();return}
+ if(d.o){var o=O.filter(function(x){return x.no===d.no})[0];if(!o)return;o[d.o]=v;saveO();if(e.type==='change'){push('update',o);if(d.o==='st')panel()}return}
  if(d.cd){var c=S.codes[i];if(d.cd==='code')v=v.toUpperCase().replace(/\s/g,'');if(d.cd==='v')v=Math.max(0,parseFloat(v)||0);if(d.cd==='on')v=t.checked;c[d.cd]=v;save();return}
  if(d.k==='cat'){S.cats[i].name=v}
  else if(d.k==='pcat'){S.prods[i].cat=v}
  else if(d.k){var k=d.k;if(k==='price'||k==='old')v=Math.max(0,parseFloat(v)||0);if(k==='per'||k==='min'||k==='max')v=Math.max(1,parseInt(v)||1);S.prods[i][k]=v}
- else if(d.s){if(d.s==='pass'&&!v)return;S[d.s]=v}
+ else if(d.s){if(d.s==='pass'&&!v)return;S[d.s]=d.s==='ordersUrl'?v.trim():v}
  else if(d.r){S.rates[d.r]=parseFloat(v)||S.rates[d.r]}
  else return;
  save()}
