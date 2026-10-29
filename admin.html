@@ -61,16 +61,17 @@ function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&','<':'<','>':'>','"':'"'}[c]})}
 function toast(m){var t=$('tt');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2800)}
 function img(p){return p.img?'<img src="'+p.img+'" alt="">':'<div class="ph">ARC</div>'}
-function save(){try{localStorage.setItem('arcstore_data',JSON.stringify(S));toast('تم الحفظ تلقائياً ✓');}catch(e){toast('تعذر الحفظ (الصورة كبيرة جداً)');}}
+function save(){try{localStorage.setItem('arcstore_data',JSON.stringify(S));toast('تم الحفظ بنجاح ✓');}catch(e){toast('تعذر الحفظ (الصورة كبيرة جداً)');}}
 function A(){return $('admBox')}
 
 function openAdm(){
  A().innerHTML='<div class="lg"><div class="logo" style="justify-content:center;margin-bottom:14px"><b>ARC</b><i>STORE</i></div><h3>دخول الإدارة</h3><input class="fld" id="pw" type="password" placeholder="كلمة المرور" style="text-align:center"><div class="err" id="pe"></div><button class="btn" id="lg" style="width:100%">دخول</button></div>';
- $('pw').onkeydown=function(e){if(e.key==='Enter')$('lg').click()};$('lg').onclick=function(){if($('pw').value===S.pass){panel()}else$('pe').textContent='كلمة المرور غير صحيحة'}
+ $('pw').onkeydown=function(e){if(e.key==='Enter')$('lg').click()};
+ $('lg').onclick=function(){if($('pw').value===S.pass){panel()}else $('pe').textContent='كلمة المرور غير صحيحة'}
 }
 
 function panel(){var st=$('adm').scrollTop;
- var h='<div class="top"><h2>لوحة التحكم</h2><div><a class="btn ghost" href="index.html" target="_blank">معاينة المتجر ↗</a></div></div><p class="hint">أي تعديل تضيفه (منتجات، أسعار، رقم واتساب) يتم حفظه فورا وتلقائيا دون أي ملفات.</p>';
+ var h='<div class="top"><h2>لوحة التحكم</h2><div><a class="btn ghost" href="index.html" target="_blank">معاينة المتجر ↗</a></div></div><p class="hint">أي تعديل تضيعه أو تغييره (رقم الواتساب، الأسعار، المنتجات) يحفظ تلقائياً وفوراً بدون أي ملفات.</p>';
  h+='<div class="tabs">'+[['prods','المنتجات والأقسام'],['codes','أكواد الخصم'],['set','الإعدادات']].map(function(t){return '<button class="tab'+(tab===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
  h+=({prods:vProds,codes:vCodes,set:vSet})[tab]();
  A().innerHTML=h;$('adm').scrollTop=st;
