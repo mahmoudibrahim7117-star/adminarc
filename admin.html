@@ -44,37 +44,25 @@ select.fld option{background:#000}
 .up{margin-top:8px;display:block;text-align:center;font-size:.85rem;border:1px dashed var(--rd);border-radius:8px;padding:5px;cursor:pointer;color:var(--rd2)}
 .tt{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--rd);padding:10px 22px;border-radius:10px;z-index:99;box-shadow:0 0 24px var(--rd);display:none}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.hint{font-size:.85rem;color:var(--mt);margin:4px 0}textarea.fld{resize:vertical}.cr{margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #1d1d22}.full{grid-column:1/-1}
-.oc{border:1px solid var(--ln);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--pn)}.oh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.og{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-bottom:10px}@media(max-width:640px){.og{grid-template-columns:1fr}}.bd{border-radius:99px;padding:1px 12px;font-size:.8rem;font-weight:700}.s-ordered{background:#1e3a8a;color:#bfdbfe}.s-delivered{background:#14532d;color:#bbf7d0}.s-notdel{background:#713f12;color:#fde68a}.s-canceled{background:#7f1d1d;color:#fecaca}.wl{color:#25d366}
 </style>
 </head>
 <body>
 <div id="adm"><div class="box" id="admBox"></div></div>
 <div class="tt" id="tt"></div>
-<script src="data.js"></script>
 <script>
-var CS={AED:'د.إ',SAR:'ر.س',USD:'$'};
-var ST={ordered:'تم الطلب',delivered:'تم التسليم',notdel:'لم يُسلَّم',canceled:'ملغي'};
 var DEF={"wa":"966500000000","pass":"1234","rates":{"AED":1,"SAR":1.02,"USD":0.2723},"cats":[{"id":"c1","name":"المتابعين"},{"id":"c2","name":"المشاهدات"},{"id":"c3","name":"الاشتراكات"}],"prods":[{"id":"p1","cat":"c1","name":"متابعين انستغرام","price":15,"per":1000,"min":250,"max":100000,"unit":"متابع","img":"","desc":"متابعين لحساب انستغرام. يبدأ التنفيذ بعد تأكيد الطلب.","eta":"من 1 إلى 24 ساعة"},{"id":"p2","cat":"c1","name":"متابعين تيك توك","price":18,"per":1000,"min":250,"max":100000,"unit":"متابع","img":"","desc":"متابعين لحساب تيك توك. يبدأ التنفيذ بعد تأكيد الطلب.","eta":"من 1 إلى 24 ساعة"},{"id":"p3","cat":"c2","name":"مشاهدات تيك توك","price":2.2,"per":1000,"min":250,"max":1000000,"unit":"مشاهدة","img":"","desc":"مشاهدات لفيديوهات تيك توك. أرسل رابط الفيديو عند الطلب.","eta":"خلال 6 ساعات"},{"id":"p4","cat":"c2","name":"مشاهدات انستغرام ريلز","price":2,"per":1000,"min":250,"max":1000000,"unit":"مشاهدة","img":"","desc":"مشاهدات لريلز انستغرام. أرسل رابط الريلز عند الطلب.","eta":"خلال 6 ساعات"},{"id":"p5","cat":"c3","name":"اشتراك نتفليكس شهر","price":15,"per":1,"min":1,"max":12,"unit":"اشتراك","img":"","desc":"اشتراك نتفليكس لمدة شهر. أرسل بريدك عند الطلب.","eta":"خلال ساعة"},{"id":"p6","cat":"c3","name":"اشتراك سبوتيفاي شهر","price":11,"per":1,"min":1,"max":12,"unit":"اشتراك","img":"","desc":"اشتراك سبوتيفاي لمدة شهر. أرسل بريدك عند الطلب.","eta":"خلال ساعة"}],"codes":[]};
 
-var KEY='arcstore_admin_draft',OKEY='arcstore_orders',S,tab='orders',ofl='all',O=[];
-try{var d0=JSON.parse(localStorage.getItem(KEY));if(d0&&d0.base===JSON.stringify(window.ARC_DATA||DEF))S=d0.s}catch(e){}
-if(!S)S=JSON.parse(JSON.stringify(window.ARC_DATA||DEF));
+var S;
+try{S=JSON.parse(localStorage.getItem('arcstore_data'))||DEF;}catch(e){S=DEF;}
 S.codes=S.codes||[];S.prods.forEach(function(p){p.desc=p.desc||'';p.eta=p.eta||''});
-try{O=JSON.parse(localStorage.getItem(OKEY))||[]}catch(e){}
+var tab='prods';
 
 function $(i){return document.getElementById(i)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&','<':'<','>':'>','"':'"'}[c]})}
 function toast(m){var t=$('tt');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(function(){t.style.display='none'},2800)}
 function img(p){return p.img?'<img src="'+p.img+'" alt="">':'<div class="ph">ARC</div>'}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({base:JSON.stringify(window.ARC_DATA||DEF),s:S}))}catch(e){toast('تعذر الحفظ المؤقت (الصور كبيرة)')}}
-function saveO(){try{localStorage.setItem(OKEY,JSON.stringify(O))}catch(e){}}
+function save(){try{localStorage.setItem('arcstore_data',JSON.stringify(S));toast('تم الحفظ تلقائياً ✓');}catch(e){toast('تعذر الحفظ (الصورة كبيرة جداً)');}}
 function A(){return $('admBox')}
-function dlDataJs(){
- var code='// بيانات المتجر\nwindow.ARC_DATA = '+JSON.stringify(S,null,1)+';\n';
- var b=new Blob([code],{type:'text/javascript'}),a=document.createElement('a');
- a.href=URL.createObjectURL(b);a.download='data.js';document.body.appendChild(a);a.click();a.remove();
- toast('تم تحميل data.js ✓ ارفعه لاستضافة موقعك لتظهر التعديلات للجميع');
-}
 
 function openAdm(){
  A().innerHTML='<div class="lg"><div class="logo" style="justify-content:center;margin-bottom:14px"><b>ARC</b><i>STORE</i></div><h3>دخول الإدارة</h3><input class="fld" id="pw" type="password" placeholder="كلمة المرور" style="text-align:center"><div class="err" id="pe"></div><button class="btn" id="lg" style="width:100%">دخول</button></div>';
@@ -82,25 +70,10 @@ function openAdm(){
 }
 
 function panel(){var st=$('adm').scrollTop;
- var cnt={all:O.length};Object.keys(ST).forEach(function(k){cnt[k]=O.filter(function(o){return o.st===k}).length});
- var h='<div class="top"><h2>لوحة التحكم</h2><div><button class="btn" id="dl">تحميل وتحديث data.js (بضغطة زر للمنتجات)</button></div></div><p class="hint">الطلبات تصل هنا تلقائياً عندما يضغط الزر على إتمام الطلب من الموقع. عدّل حالتها ومتابعتها مباشرة.</p>';
- h+='<div class="tabs">'+[['orders','الطلبات ('+O.length+')'],['prods','المنتجات والأقسام'],['codes','أكواد الخصم'],['set','الإعدادات']].map(function(t){return '<button class="tab'+(tab===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
- h+=({orders:vOrders,prods:vProds,codes:vCodes,set:vSet})[tab]();
+ var h='<div class="top"><h2>لوحة التحكم</h2><div><a class="btn ghost" href="index.html" target="_blank">معاينة المتجر ↗</a></div></div><p class="hint">أي تعديل تضيفه (منتجات، أسعار، رقم واتساب) يتم حفظه فورا وتلقائيا دون أي ملفات.</p>';
+ h+='<div class="tabs">'+[['prods','المنتجات والأقسام'],['codes','أكواد الخصم'],['set','الإعدادات']].map(function(t){return '<button class="tab'+(tab===t[0]?' on':'')+'" data-tab="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
+ h+=({prods:vProds,codes:vCodes,set:vSet})[tab]();
  A().innerHTML=h;$('adm').scrollTop=st;
-}
-
-function vOrders(){
- var cnt={all:O.length};Object.keys(ST).forEach(function(k){cnt[k]=O.filter(function(o){return o.st===k}).length});
- var h='<div class="tabs">'+[['all','الكل']].concat(Object.keys(ST).map(function(k){return [k,ST[k]]})).map(function(f){return '<button class="tab'+(ofl===f[0]?' on':'')+'" data-fl="'+f[0]+'">'+f[1]+' ('+cnt[f[0]]+')</button>'}).join('')+'</div>';
- var l=O.filter(function(o){return ofl==='all'||o.st===ofl});
- return h+(l.length?l.map(oCard).join(''):'<p class="sub">لا توجد طلبات مسجلة حتى الآن.</p>');
-}
-
-function oCard(o){var ph=String(o.ph||'').replace(/\D/g,''),n=esc(o.no);
- return '<div class="oc"><div class="oh"><b>'+n+'</b><span class="bd s-'+o.st+'">'+ST[o.st]+'</span><span class="hint">'+new Date(o.t).toLocaleString('en-GB')+'</span></div><div class="og"><div><div class="hint">العميل</div><b>'+esc(o.nm)+'</b><div dir="ltr" style="text-align:right">'+esc(o.em)+'</div><a class="wl" target="_blank" href="https://wa.me/'+ph+'" dir="ltr">+'+esc(ph)+' (واتساب)</a></div><div><div class="hint">تفاصيل الفاتورة والطلب</div>'+o.it.map(function(x){return '<div>• '+esc(x.n)+' × '+Number(x.q).toLocaleString('en-US')+' '+esc(x.u)+' — '+x.l+' '+o.cur+'<div class="hint">الحساب: '+esc(x.a)+'</div></div>'}).join('')+(o.cd?'<div class="hint">كود الخصم: '+esc(o.cd)+'</div>':'')+'<div><b>الإجمالي: '+o.tt+' '+o.cur+'</b></div></div></div><div class="ff">'+
- fl('حالة الطلب','<select class="fld" data-o="st" data-no="'+n+'">'+Object.keys(ST).map(function(k){return '<option value="'+k+'"'+(o.st===k?' selected':'')+'>'+ST[k]+'</option>'}).join('')+'</select>')+
- fl('مدة التنفيذ','<input class="fld" data-o="eta" data-no="'+n+'" value="'+esc(o.eta)+'" placeholder="مثال: خلال 24 ساعة">')+
- fl('ملاحظات','<input class="fld" data-o="note" data-no="'+n+'" value="'+esc(o.note)+'">')+'</div><div style="margin-top:8px"><button class="x" data-delo="'+n+'">حذف الطلب</button></div></div>';
 }
 
 function vProds(){
@@ -135,8 +108,6 @@ function upImg(i,f){if(!f)return;var r=new FileReader();r.onload=function(){var 
 
 A().onclick=function(e){var t=e.target,d=t.dataset;
  if(d.tab){tab=d.tab;panel();return}
- if(d.fl){ofl=d.fl;panel();return}
- if(t.id==='dl'){dlDataJs();return}
  if(t.id==='ac'){S.cats.push({id:'c'+Date.now(),name:'قسم جديد'});save();panel();return}
  if(t.id==='ap'){if(!S.cats.length){toast('أضف قسماً أولاً');return}S.prods.push({id:'p'+Date.now(),cat:S.cats[0].id,name:'منتج جديد',desc:'',eta:'',price:10,per:1000,min:250,max:100000,unit:'وحدة',img:''});save();panel();return}
  if(t.id==='acd'){S.codes.push({code:'CODE'+Math.floor(Math.random()*900+100),type:'p',v:10,on:true});save();panel();return}
@@ -144,12 +115,10 @@ A().onclick=function(e){var t=e.target,d=t.dataset;
  if(d.dp!==undefined){if(confirm('حذف هذا المنتج؟')){S.prods.splice(d.dp,1);save();panel()}return}
  if(d.ri!==undefined){S.prods[d.ri].img='';save();panel();return}
  if(d.dcd!==undefined){if(confirm('حذف الكود؟')){S.codes.splice(d.dcd,1);save();panel()}return}
- if(d.delo!==undefined){if(confirm('حذف الطلب؟')){O=O.filter(function(x){return x.no!==d.delo});saveO();panel()}}
 };
 
 function onEdit(e){var t=e.target,d=t.dataset,i=d.i,v=t.value;
  if(d.up!==undefined){if(e.type==='change')upImg(d.up,t.files[0]);return}
- if(d.o){var o=O.filter(function(x){return x.no===d.no})[0];if(!o)return;o[d.o]=v;saveO();if(e.type==='change'&&d.o==='st')panel();return}
  if(d.cd){var c=S.codes[i];if(d.cd==='code')v=v.toUpperCase().replace(/\s/g,'');if(d.cd==='v')v=Math.max(0,parseFloat(v)||0);if(d.cd==='on')v=t.checked;c[d.cd]=v;save();return}
  if(d.k==='cat'){S.cats[i].name=v}
  else if(d.k==='pcat'){S.prods[i].cat=v}
