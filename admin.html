@@ -159,6 +159,7 @@ function vProds(){
   fl('الاسم','<input class="fld" '+d+'data-k="name" value="'+esc(p.name)+'">')+
   fl('القسم','<select class="fld" '+d+'data-k="pcat">'+S.cats.map(function(c){return '<option value="'+c.id+'"'+(c.id===p.cat?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select>')+
   fl('السعر بالدرهم','<input class="fld" type="number" step="any" min="0" '+d+'data-k="price" value="'+p.price+'">')+
+  fl('السعر قبل الخصم (اختياري)','<input class="fld" type="number" step="any" min="0" '+d+'data-k="old" value="'+(p.old||'')+'" placeholder="فارغ = بدون خصم">')+
   fl('السعر لكل (كمية)','<input class="fld" type="number" min="1" '+d+'data-k="per" value="'+p.per+'">')+
   fl('أقل كمية','<input class="fld" type="number" min="1" '+d+'data-k="min" value="'+p.min+'">')+
   fl('أكثر كمية','<input class="fld" type="number" min="1" '+d+'data-k="max" value="'+p.max+'">')+
@@ -199,7 +200,7 @@ function onEdit(e){var t=e.target,d=t.dataset,i=d.i,v=t.value;
  if(d.cd){var c=S.codes[i];if(d.cd==='code')v=v.toUpperCase().replace(/\s/g,'');if(d.cd==='v')v=Math.max(0,parseFloat(v)||0);if(d.cd==='on')v=t.checked;c[d.cd]=v;save();return}
  if(d.k==='cat'){S.cats[i].name=v}
  else if(d.k==='pcat'){S.prods[i].cat=v}
- else if(d.k){var k=d.k;if(k==='price')v=Math.max(0,parseFloat(v)||0);if(k==='per'||k==='min'||k==='max')v=Math.max(1,parseInt(v)||1);S.prods[i][k]=v}
+ else if(d.k){var k=d.k;if(k==='price'||k==='old')v=Math.max(0,parseFloat(v)||0);if(k==='per'||k==='min'||k==='max')v=Math.max(1,parseInt(v)||1);S.prods[i][k]=v}
  else if(d.s){if(d.s==='pass'&&!v)return;S[d.s]=v}
  else if(d.r){S.rates[d.r]=parseFloat(v)||S.rates[d.r]}
  else return;
